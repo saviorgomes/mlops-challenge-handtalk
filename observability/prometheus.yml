@@ -5,8 +5,11 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['prometheus:9090']
-  
+
   - job_name: 'api'
+    metrics_path: /probe
+    params:
+      module: [default]
+      target: ['http://api:8000/metrics']
     static_configs:
-      - targets: ['api:8000']
-    metrics_path: /metrics
+      - targets: ['json-exporter:7979']

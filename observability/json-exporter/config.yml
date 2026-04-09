@@ -1,0 +1,12 @@
+modules:
+  default:
+    metrics:
+      - name: api_requests_total
+        path: "{ .requests_total }"
+        help: Total de requisições recebidas pela API
+      - name: api_errors_total
+        path: "{ .errors_total }"
+        help: Total de erros retornados pela API
+      - name: api_translations_total
+        path: "{ .translations_total }"
+        help: Total de traduções realizadas pela API

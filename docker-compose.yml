@@ -140,6 +140,20 @@ services:
       start_period: 30s
     networks:
       - mlops
+  json-exporter:
+    image: prometheuscommunity/json-exporter:v0.6.0
+    volumes:
+      - ./observability/json-exporter/config.yml:/etc/json-exporter/config.yml
+    command: --config.file=/etc/json-exporter/config.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:7979/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mlops
+
   prometheus:
     image: prom/prometheus:v2.45.0
     ports:

@@ -180,6 +180,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./observability/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting
     depends_on:
       prometheus:
         condition: service_healthy

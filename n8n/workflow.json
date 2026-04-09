@@ -111,20 +111,33 @@
       "typeVersion": 2,
       "position": [1340, 300]
     },
-        {
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://api:8000/model",
+        "options": {}
+      },
+      "id": "a0b1c2d3-e4f5-6789-abcd-000000000001",
+      "name": "Modelo Atual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 180]
+    },
+    {
       "parameters": {
         "method": "POST",
         "url": "http://api:8000/reload",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ run_id: $json.run_id, artifacts_dir: 'artifacts' }) }}",
+        "jsonBody": "={{ JSON.stringify({ run_id: $('Parsear Resultado').item.json.run_id, artifacts_dir: 'artifacts' }) }}",
         "options": {}
       },
+      "onError": "continueErrorOutput",
       "id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
       "name": "Deploy",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 180]
+      "position": [1780, 180]
     },
     {
       "parameters": {
@@ -136,7 +149,34 @@
       "name": "Sucesso",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1780, 180]
+      "position": [2000, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/reload",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ run_id: $('Modelo Atual').item.json.run_id || null, artifacts_dir: 'artifacts' }) }}",
+        "options": {}
+      },
+      "id": "a0b1c2d3-e4f5-6789-abcd-000000000002",
+      "name": "Rollback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, run_id: $('Parsear Resultado').item.json.run_id, status: 'deploy_failed_rollback', reason: 'Falha no deploy — modelo anterior restaurado', previous_run_id: $('Modelo Atual').item.json.run_id }) }}",
+        "options": { "responseCode": 500 }
+      },
+      "id": "a0b1c2d3-e4f5-6789-abcd-000000000003",
+      "name": "Falha no Deploy",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2220, 300]
     },
     {
       "parameters": {
@@ -170,17 +210,24 @@
     },
     "Aprovado?": {
       "main": [
-        [{ "node": "Deploy", "type": "main", "index": 0 }],
+        [{ "node": "Modelo Atual", "type": "main", "index": 0 }],
         [{ "node": "Rejeitado", "type": "main", "index": 0 }]
       ]
     },
+    "Modelo Atual": {
+      "main": [[{ "node": "Deploy", "type": "main", "index": 0 }]]
+    },
     "Deploy": {
-      "main": [[{ "node": "Sucesso", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Sucesso", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Rollback", "type": "main", "index": 0 }]]
+    },
+    "Rollback": {
+      "main": [[{ "node": "Falha no Deploy", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
   "settings": { "executionOrder": "v1" },
-  "versionId": "d0e1f2a3-b4c5-6789-defa-890123456789",
+  "versionId": "d0e1f2a3-b4c5-6789-defa-890123456790",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "e1f2a3b4-c5d6-7890-efab-901234567890"

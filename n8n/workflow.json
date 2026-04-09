@@ -1,0 +1,190 @@
+{
+  "name": "MLOps Pipeline - Hand Talk",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mlops-pipeline",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "mlops-pipeline"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "dataset_name",
+              "value": "={{ (() => { const value = $json.body?.dataset_name; return value === undefined || value === null || value === '' || value === 'undefined' ? 'para_crawl/enpt' : String(value); })() }}",
+              "type": "string"
+            },
+            {
+              "id": "p2",
+              "name": "max_tokens",
+              "value": "={{ (() => { const value = $json.body?.max_tokens; return value === undefined || value === null || value === '' || value === 'undefined' ? 64 : Number(value); })() }}",
+              "type": "number"
+            },
+            {
+              "id": "p3",
+              "name": "epochs",
+              "value": "={{ (() => { const value = $json.body?.epochs; return value === undefined || value === null || value === '' || value === 'undefined' ? 2 : Number(value); })() }}",
+              "type": "number"
+            },
+            {
+              "id": "p4",
+              "name": "threshold",
+              "value": "={{ (() => { const value = $json.body?.threshold; return value === undefined || value === null || value === '' || value === 'undefined' ? 0.0 : Number(value); })() }}",
+              "type": "number"
+            },
+            {
+              "id": "p5",
+              "name": "git_sha",
+              "value": "={{ (() => { const value = $json.body?.git_sha; return value === undefined || value === null || value === '' || value === 'undefined' ? 'unknown' : String(value); })() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Parâmetros",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "command": "=docker run --rm --network mlops-challenge_mlops -v {{ $env.HOST_WORKSPACE_PATH }}:/workspace -e WRAPT_DISABLE_EXTENSIONS=1 -e PYTHONUNBUFFERED=1 mlops-challenge-ml:local python -m ml.prepare_dataset --output_dir data/processed --dataset_name {{ $json.dataset_name }} --max_tokens {{ $json.max_tokens }} --train_records 500 --val_records 100 --seed 42"
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Preparar Dados",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "command": "=docker run --rm --network mlops-challenge_mlops -v {{ $env.HOST_WORKSPACE_PATH }}:/workspace -e WRAPT_DISABLE_EXTENSIONS=1 -e PYTHONUNBUFFERED=1 mlops-challenge-ml:local python -m ml.train --data_dir data/processed --artifacts_dir artifacts --epochs {{ $('Parâmetros').item.json.epochs }} --batch_size 32 --threshold {{ $('Parâmetros').item.json.threshold }} --max_tokens {{ $('Parâmetros').item.json.max_tokens }} --git_sha {{ $('Parâmetros').item.json.git_sha }}"
+      },
+      "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+      "name": "Treinar",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.item.json.stdout;\nconst lines = output.trim().split('\\n');\nconst lastLine = lines[lines.length - 1];\nconst summary = JSON.parse(lastLine);\nreturn { json: summary };"
+      },
+      "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+      "name": "Parsear Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-approved",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "approved",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+      "name": "Aprovado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+        {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/reload",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ run_id: $json.run_id, artifacts_dir: 'artifacts' }) }}",
+        "options": {}
+      },
+      "id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+      "name": "Deploy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, run_id: $('Parsear Resultado').item.json.run_id, status: 'deployed', metric_value: $('Parsear Resultado').item.json.metric_value }) }}",
+        "options": {}
+      },
+      "id": "b8c9d0e1-f2a3-4567-bcde-678901234567",
+      "name": "Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1780, 180]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, run_id: $('Parsear Resultado').item.json.run_id, status: 'rejected', reason: 'Modelo abaixo do threshold', metric_value: $('Parsear Resultado').item.json.metric_value, threshold: $('Parsear Resultado').item.json.threshold }) }}",
+        "options": { "responseCode": 422 }
+      },
+      "id": "c9d0e1f2-a3b4-5678-cdef-789012345678",
+      "name": "Rejeitado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 420]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Parâmetros", "type": "main", "index": 0 }]]
+    },
+    "Parâmetros": {
+      "main": [[{ "node": "Preparar Dados", "type": "main", "index": 0 }]]
+    },
+    "Preparar Dados": {
+      "main": [[{ "node": "Treinar", "type": "main", "index": 0 }]]
+    },
+    "Treinar": {
+      "main": [[{ "node": "Parsear Resultado", "type": "main", "index": 0 }]]
+    },
+    "Parsear Resultado": {
+      "main": [[{ "node": "Aprovado?", "type": "main", "index": 0 }]]
+    },
+    "Aprovado?": {
+      "main": [
+        [{ "node": "Deploy", "type": "main", "index": 0 }],
+        [{ "node": "Rejeitado", "type": "main", "index": 0 }]
+      ]
+    },
+    "Deploy": {
+      "main": [[{ "node": "Sucesso", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "d0e1f2a3-b4c5-6789-defa-890123456789",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e1f2a3b4-c5d6-7890-efab-901234567890"
+  },
+  "id": "f2a3b4c5-d6e7-8901-fabc-012345678901",
+  "tags": []
+}

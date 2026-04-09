@@ -297,11 +297,13 @@ flowchart TD
 - Arquivo `.env` configurado a partir de `.env.example`
 - Arquivo `nginx/.htpasswd` configurado a partir de `nginx/.htpasswd.example`
 
-### 1. Subir todos os serviços
+### 1. Subir o ambiente completo
 
 ```bash
 docker compose --profile api up -d --build
 ```
+
+Esse comando sobe a API e o gateway via profile `api`, além dos serviços de suporte sem profile, como `n8n`, `Prometheus`, `Grafana`, `Loki` e `Promtail`.
 
 | Serviço | URL |
 |---|---|
@@ -391,13 +393,4 @@ Pipeline GitHub Actions com 4 stages em sequência:
 
 ## 🔐 Variáveis de Ambiente
 
-> [!WARNING]
-> Não versione arquivos reais com credenciais. O repositório inclui `.env.example` e `nginx/.htpasswd.example` como templates locais, enquanto `.env`, `nginx/.htpasswd` e arquivos temporários/bancos locais ficam ignorados por `.gitignore`.
-
-| Variável | Padrão | Descrição |
-|---|---|---|
-| `N8N_USER` | `admin` | Usuário do n8n |
-| `N8N_PASSWORD` | `admin` | Senha do n8n |
-| `GF_ADMIN_PASSWORD` | `admin` | Senha do Grafana |
-| `DEFAULT_RUN_ID` | *(vazio)* | `run_id` do modelo carregado na inicialização da API |
-| `ARTIFACTS_DIR` | `artifacts` | Diretório de artefatos montado na API |
+As configurações locais podem ser definidas em `.env`, com base em `.env.example`. Credenciais reais e arquivos locais sensíveis, como `nginx/.htpasswd`, não são versionados.

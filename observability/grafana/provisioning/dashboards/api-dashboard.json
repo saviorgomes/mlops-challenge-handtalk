@@ -1,0 +1,79 @@
+{
+  "title": "MLOps - Inference API",
+  "uid": "mlops-api",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total de Requisições",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 4 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "api_requests_total",
+        "legendFormat": "Requisições"
+      }],
+      "options": { "colorMode": "background", "graphMode": "area" }
+    },
+    {
+      "id": 2,
+      "title": "Total de Erros",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "api_errors_total",
+        "legendFormat": "Erros"
+      }],
+      "options": { "colorMode": "background", "graphMode": "area" }
+    },
+    {
+      "id": 3,
+      "title": "Total de Traduções",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 4 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "api_translations_total",
+        "legendFormat": "Traduções"
+      }],
+      "options": { "colorMode": "background", "graphMode": "area" }
+    },
+    {
+      "id": 4,
+      "title": "Métricas ao longo do tempo",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "api_requests_total",
+          "legendFormat": "Requisições"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "api_errors_total",
+          "legendFormat": "Erros"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "api_translations_total",
+          "legendFormat": "Traduções"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Logs da API",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 },
+      "targets": [{
+        "datasource": { "type": "loki", "uid": "loki" },
+        "expr": "{compose_service=\"api\"}",
+        "legendFormat": "API Logs"
+      }]
+    }
+  ]
+}

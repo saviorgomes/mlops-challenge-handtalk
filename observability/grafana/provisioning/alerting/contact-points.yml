@@ -1,0 +1,11 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: MLOps Webhook
+    receivers:
+      - uid: mlops-webhook
+        type: webhook
+        settings:
+          url: http://n8n:5678/webhook/mlops-alerts
+          httpMethod: POST
+        disableResolveMessage: false

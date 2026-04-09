@@ -12,3 +12,9 @@ nginx/.htpasswd
 *.sqlite-shm
 *.sqlite-wal
 *.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/

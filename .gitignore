@@ -1,3 +1,14 @@
 artifacts
 data
 .idea
+.env
+.env.*
+!.env.example
+nginx/.htpasswd
+!nginx/.htpasswd.example
+.tmp-*
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log

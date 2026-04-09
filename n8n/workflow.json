@@ -125,6 +125,16 @@
     },
     {
       "parameters": {
+        "command": "=docker run --rm --network mlops-challenge_mlops -v {{ $env.HOST_WORKSPACE_PATH }}:/workspace -e WRAPT_DISABLE_EXTENSIONS=1 -e PYTHONUNBUFFERED=1 mlops-challenge-ml:local python automation/publish_artifact.py --artifacts_dir artifacts --run_id {{ $('Parsear Resultado').item.json.run_id }}"
+      },
+      "id": "11223344-5566-7788-99aa-bbccddeeff00",
+      "name": "Publicar Artefatos",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://api:8000/reload",
         "sendBody": true,
@@ -189,6 +199,32 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [1560, 420]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mlops-alerts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "00112233-4455-6677-8899-aabbccddeeff",
+      "name": "Webhook Alertas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 560],
+      "webhookId": "mlops-alerts"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true, source: 'grafana', status: 'acknowledged', alert: $json.body?.title || $json.body?.message || 'unknown' }) }}",
+        "options": {}
+      },
+      "id": "ffeeddcc-bbaa-9988-7766-554433221100",
+      "name": "Alerta Recebido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [460, 560]
     }
   ],
   "pinData": {},
@@ -210,9 +246,12 @@
     },
     "Aprovado?": {
       "main": [
-        [{ "node": "Modelo Atual", "type": "main", "index": 0 }],
+        [{ "node": "Publicar Artefatos", "type": "main", "index": 0 }],
         [{ "node": "Rejeitado", "type": "main", "index": 0 }]
       ]
+    },
+    "Publicar Artefatos": {
+      "main": [[{ "node": "Modelo Atual", "type": "main", "index": 0 }]]
     },
     "Modelo Atual": {
       "main": [[{ "node": "Deploy", "type": "main", "index": 0 }]]
@@ -223,6 +262,9 @@
     },
     "Rollback": {
       "main": [[{ "node": "Falha no Deploy", "type": "main", "index": 0 }]]
+    },
+    "Webhook Alertas": {
+      "main": [[{ "node": "Alerta Recebido", "type": "main", "index": 0 }]]
     }
   },
   "active": true,

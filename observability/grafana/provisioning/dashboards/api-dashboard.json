@@ -24,7 +24,7 @@
       "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
       "targets": [{
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "expr": "api_errors_total",
+        "expr": "sum(api_errors_total) or vector(0)",
         "legendFormat": "Erros"
       }],
       "options": { "colorMode": "background", "graphMode": "area" }
@@ -54,7 +54,7 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "api_errors_total",
+          "expr": "sum(api_errors_total or vector(0))",
           "legendFormat": "Erros"
         },
         {
@@ -66,14 +66,29 @@
     },
     {
       "id": 5,
-      "title": "Logs da API",
+      "title": "Logs da API e Gateway",
       "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 },
+      "pluginVersion": "10.0.0",
       "targets": [{
         "datasource": { "type": "loki", "uid": "loki" },
-        "expr": "{compose_service=\"api\"}",
-        "legendFormat": "API Logs"
-      }]
+        "expr": "{compose_service=~\"api|nginx\"}",
+        "legendFormat": "Aplicacao",
+        "queryType": "range",
+        "maxLines": 100,
+        "refId": "A"
+      }],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
     }
   ]
 }

@@ -224,6 +224,7 @@ flowchart TD
         Publish["📦 Publicar Artefatos\nartifacts/<run_id> + metadados"]
         Deploy["🚀 Deploy\nPOST /reload com run_id"]
         Prometheus["📈 Prometheus\n:9090"]
+        JsonExporter["🔄 json-exporter\n:7979"]
         Grafana["📊 Grafana\n:3000"]
         Loki["📋 Loki\n:3100"]
     end
@@ -237,7 +238,8 @@ flowchart TD
     Validate -->|"aprovado"| Publish
     Publish -->|"artefato versionado"| Deploy
     Deploy -->|"POST /reload"| API
-    Prometheus -->|"scrape /metrics"| API
+    JsonExporter -->|"scrape /metrics JSON"| API
+    Prometheus -->|"scrape Prometheus format"| JsonExporter
     Grafana --> Prometheus
     Grafana --> Loki
     API -->|"logs estruturados"| Loki
@@ -252,7 +254,7 @@ flowchart TD
 |---|---|---|
 | **Orquestrador** | n8n | Pipeline ML via webhook |
 | **API Gateway** | NGINX | Basic Auth, rate limit e logging |
-| **Métricas** | Prometheus + Grafana | Coleta e dashboard |
+| **Métricas** | Prometheus + json-exporter + Grafana | Coleta, conversão de formato e dashboard |
 | **Logs** | Loki + Grafana | Centralização de logs |
 | **CI/CD** | GitHub Actions | Lint, test, build, publish |
 
@@ -342,7 +344,7 @@ Pipeline GitHub Actions com 4 stages em sequência:
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `N8N_USER` | `admin` | Usuário do n8n |
-| `N8N_PASSWORD` | `change-me` | Senha do n8n |
-| `GF_ADMIN_PASSWORD` | `change-me` | Senha do Grafana |
+| `N8N_PASSWORD` | `admin` | Senha do n8n |
+| `GF_ADMIN_PASSWORD` | `admin` | Senha do Grafana |
 | `DEFAULT_RUN_ID` | *(vazio)* | `run_id` do modelo carregado na inicialização da API |
 | `ARTIFACTS_DIR` | `artifacts` | Diretório de artefatos montado na API |

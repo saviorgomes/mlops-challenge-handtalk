@@ -15,7 +15,11 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: api_errors_total
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: sum(api_errors_total) or vector(0)
               intervalMs: 1000
               maxDataPoints: 43200
               refId: A
@@ -61,7 +65,11 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: api_errors_total / (api_requests_total + 1)
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: (sum(api_errors_total) or vector(0)) / ((sum(api_requests_total) or vector(0)) + 1)
               intervalMs: 1000
               maxDataPoints: 43200
               refId: A
@@ -107,7 +115,11 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: api_translations_total
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: sum(api_translations_total) or vector(0)
               intervalMs: 1000
               maxDataPoints: 43200
               refId: A

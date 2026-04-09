@@ -245,6 +245,7 @@ flowchart TD
         JsonExporter["🔄 json-exporter\n:7979"]
         Grafana["📊 Grafana\n:3000"]
         Loki["📋 Loki\n:3100"]
+        Promtail["📨 Promtail\nColeta de logs dos containers"]
     end
 
     Client -->|"HTTP"| Nginx
@@ -260,7 +261,10 @@ flowchart TD
     Prometheus -->|"scrape Prometheus format"| JsonExporter
     Grafana --> Prometheus
     Grafana --> Loki
-    API -->|"logs estruturados"| Loki
+    Grafana -->|"alert webhook"| N8N
+    API -->|"stdout/stderr"| Promtail
+    Nginx -->|"access/error logs"| Promtail
+    Promtail -->|"push logs"| Loki
     GHA -->|"push image"| GHCR
 ```
 

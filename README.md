@@ -228,44 +228,44 @@ Os testes de contrato validam:
 
 ```mermaid
 flowchart TD
-    Client(["👤 Cliente"])
-    GHA(["⚙️ GitHub Actions\nlint → test → build → publish"])
-    GHCR(["📦 GHCR\nRegistry"])
+    Client["Cliente"]
+    GHA["GitHub Actions"]
+    GHCR["Container Registry"]
 
-    subgraph Docker Compose ["🐳 Docker Compose — rede mlops"]
-        Nginx["🔀 NGINX\nGateway\n(Basic Auth + rate limit + logging)"]
-        API["🤖 Inference API\nFastAPI :8000\n/predict /health /metrics /reload"]
-        N8N["🔁 n8n\nOrquestrador :5678"]
-        Prepare["📂 Preparar Dados\nTFRecords em data/processed"]
-        Train["🧠 Treinar Modelo\nSavedModel + métricas + run_id"]
-        Validate["✅ Validar\nthreshold de qualidade"]
-        Publish["📦 Publicar Artefatos\npublished/<run_id> + registry/latest"]
-        Deploy["🚀 Deploy\nPOST /reload com run_id"]
-        Prometheus["📈 Prometheus\n:9090"]
-        JsonExporter["🔄 json-exporter\n:7979"]
-        Grafana["📊 Grafana\n:3000"]
-        Loki["📋 Loki\n:3100"]
-        Promtail["📨 Promtail\nColeta de logs dos containers"]
+    subgraph Compose["Docker Compose"]
+        Nginx["Gateway"]
+        API["Inference API"]
+        N8N["Orquestrador"]
+        Prepare["Preparação de Dados"]
+        Train["Treinamento"]
+        Validate["Validação"]
+        Publish["Publicação de Artefatos"]
+        Deploy["Deploy"]
+        Prometheus["Prometheus"]
+        JsonExporter["JSON Exporter"]
+        Grafana["Grafana"]
+        Loki["Loki"]
+        Promtail["Promtail"]
     end
 
-    Client -->|"HTTP"| Nginx
-    Nginx -->|"proxy"| API
-    Client -->|"webhook POST"| N8N
-    N8N -->|"1. docker run"| Prepare
-    Prepare -->|"dados processados"| Train
-    Train -->|"run_id + métricas"| Validate
-    Validate -->|"aprovado"| Publish
-    Publish -->|"artefato versionado"| Deploy
-    Deploy -->|"POST /reload"| API
-    JsonExporter -->|"scrape /metrics JSON"| API
-    Prometheus -->|"scrape Prometheus format"| JsonExporter
+    Client --> Nginx
+    Nginx --> API
+    Client --> N8N
+    N8N --> Prepare
+    Prepare --> Train
+    Train --> Validate
+    Validate --> Publish
+    Publish --> Deploy
+    Deploy --> API
+    JsonExporter --> API
+    Prometheus --> JsonExporter
     Grafana --> Prometheus
     Grafana --> Loki
-    Grafana -->|"alert webhook"| N8N
-    API -->|"stdout/stderr"| Promtail
-    Nginx -->|"access/error logs"| Promtail
-    Promtail -->|"push logs"| Loki
-    GHA -->|"push image"| GHCR
+    API --> Promtail
+    Nginx --> Promtail
+    Promtail --> Loki
+    Grafana --> N8N
+    GHA --> GHCR
 ```
 
 ---

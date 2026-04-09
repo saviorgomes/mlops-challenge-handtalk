@@ -203,3 +203,146 @@ Os testes de contrato validam:
 | **Uvicorn** | Servidor ASGI |
 | **Pytest + HTTPX** | Testes automatizados |
 | **Docker / Docker Compose** | Containerização e orquestração |
+
+---
+
+## 🗺️ Diagrama de Arquitetura
+
+```mermaid
+flowchart TD
+    Client(["👤 Cliente"])
+    GHA(["⚙️ GitHub Actions\nlint → test → build → publish"])
+    GHCR(["📦 GHCR\nRegistry"])
+
+    subgraph Docker Compose ["🐳 Docker Compose — rede mlops"]
+        Nginx["🔀 NGINX\nGateway\n(Basic Auth + rate limit + logging)"]
+        API["🤖 Inference API\nFastAPI :8000\n/predict /health /metrics /reload"]
+        N8N["🔁 n8n\nOrquestrador :5678"]
+        Prepare["📂 Preparar Dados\nTFRecords em data/processed"]
+        Train["🧠 Treinar Modelo\nSavedModel + métricas + run_id"]
+        Validate["✅ Validar\nthreshold de qualidade"]
+        Publish["📦 Publicar Artefatos\nartifacts/<run_id> + metadados"]
+        Deploy["🚀 Deploy\nPOST /reload com run_id"]
+        Prometheus["📈 Prometheus\n:9090"]
+        Grafana["📊 Grafana\n:3000"]
+        Loki["📋 Loki\n:3100"]
+    end
+
+    Client -->|"HTTP"| Nginx
+    Nginx -->|"proxy"| API
+    Client -->|"webhook POST"| N8N
+    N8N -->|"1. docker run"| Prepare
+    Prepare -->|"dados processados"| Train
+    Train -->|"run_id + métricas"| Validate
+    Validate -->|"aprovado"| Publish
+    Publish -->|"artefato versionado"| Deploy
+    Deploy -->|"POST /reload"| API
+    Prometheus -->|"scrape /metrics"| API
+    Grafana --> Prometheus
+    Grafana --> Loki
+    API -->|"logs estruturados"| Loki
+    GHA -->|"push image"| GHCR
+```
+
+---
+
+## 🏗️ Infraestrutura Adicionada
+
+| Componente | Tecnologia | Função |
+|---|---|---|
+| **Orquestrador** | n8n | Pipeline ML via webhook |
+| **API Gateway** | NGINX | Basic Auth, rate limit e logging |
+| **Métricas** | Prometheus + Grafana | Coleta e dashboard |
+| **Logs** | Loki + Grafana | Centralização de logs |
+| **CI/CD** | GitHub Actions | Lint, test, build, publish |
+
+---
+
+## 🚀 Executando o Ambiente Completo
+
+### Pré-requisitos
+
+- Docker e Docker Compose
+- Arquivo `.env` configurado a partir de `.env.example`
+- Arquivo `nginx/.htpasswd` configurado a partir de `nginx/.htpasswd.example`
+
+### 1. Subir todos os serviços
+
+```bash
+docker compose --profile api up -d --build
+```
+
+| Serviço | URL |
+|---|---|
+| API (via NGINX) | http://localhost |
+| n8n | http://localhost:5678 |
+| Grafana | http://localhost:3000 |
+| Prometheus | http://localhost:9090 |
+| Loki readiness | http://localhost:3100/ready |
+
+### 2. Disparar o pipeline via webhook
+
+```bash
+curl -X POST http://localhost:5678/webhook/mlops-pipeline \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dataset_name": "para_crawl/enpt",
+    "max_tokens": 64,
+    "epochs": 10,
+    "threshold": 0.30,
+    "git_sha": "abc1234"
+  }'
+```
+
+O pipeline executa automaticamente: **Preparar Dados → Treinar → Validar → Deploy**.
+
+### 3. Autenticação na API
+
+A API está protegida por Basic Auth via NGINX. Use as credenciais configuradas no seu arquivo local `nginx/.htpasswd`:
+
+```bash
+curl -u admin:admin http://localhost/health
+```
+
+Para encerrar a stack do ambiente completo:
+
+```bash
+docker compose --profile api down --remove-orphans
+```
+
+---
+
+## 📊 Observabilidade
+
+- **Grafana** — acesse http://localhost:3000 (usuário: `admin`, senha: definida em `GF_ADMIN_PASSWORD`)
+- Datasources provisionados automaticamente: Prometheus e Loki
+- Métricas da API disponíveis em `/metrics` e coletadas pelo Prometheus a cada 15s
+- Logs e controle de acesso da API passam pelo NGINX, com `Basic Auth`, `limit_req` de `30r/m` por cliente e `access_log` em JSON
+
+---
+
+## 🔄 CI/CD
+
+Pipeline GitHub Actions com 4 stages em sequência:
+
+| Stage | Gatilho | Ação |
+|---|---|---|
+| **lint** | push/PR | `ruff check` em `ml/`, `inference_api/`, `tests/` |
+| **test** | após lint | `pytest -q` |
+| **build** | após test | `docker build` |
+| **publish** | apenas `main` | push para GHCR |
+
+---
+
+## 🔐 Variáveis de Ambiente
+
+> [!WARNING]
+> Não versione arquivos reais com credenciais. O repositório inclui `.env.example` e `nginx/.htpasswd.example` como templates locais, enquanto `.env`, `nginx/.htpasswd` e arquivos temporários/bancos locais ficam ignorados por `.gitignore`.
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `N8N_USER` | `admin` | Usuário do n8n |
+| `N8N_PASSWORD` | `change-me` | Senha do n8n |
+| `GF_ADMIN_PASSWORD` | `change-me` | Senha do Grafana |
+| `DEFAULT_RUN_ID` | *(vazio)* | `run_id` do modelo carregado na inicialização da API |
+| `ARTIFACTS_DIR` | `artifacts` | Diretório de artefatos montado na API |

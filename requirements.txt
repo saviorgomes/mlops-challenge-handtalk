@@ -1,6 +1,7 @@
 tensorflow==2.20.0
 tensorflow-text==2.20.0
 tensorflow-datasets>=4.9.9
+importlib-resources>=6.5.2
 fastapi>=0.129.0
 uvicorn[standard]>=0.41.0
 pytest>=9.0.2

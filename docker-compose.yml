@@ -44,7 +44,7 @@ services:
       --artifacts_dir ${ARTIFACTS_DIR:-artifacts}
       --epochs ${EPOCHS:-10}
       --batch_size ${BATCH_SIZE:-32}
-      --threshold ${THRESHOLD:-0.30}
+      --threshold ${THRESHOLD:-0.0}
       --max_tokens ${MAX_TOKENS:-64}
       --git_sha ${GIT_SHA:-unknown}"
 
@@ -63,8 +63,14 @@ services:
       PYTHONUNBUFFERED: "1"
       ARTIFACTS_DIR: /workspace/${ARTIFACTS_DIR:-artifacts}
       DEFAULT_RUN_ID: ${DEFAULT_RUN_ID:-}
-    ports:
-      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - mlops
     command: >
       bash -lc "uvicorn inference_api.main:app --host 0.0.0.0 --port 8000"
 
@@ -83,6 +89,115 @@ services:
       PYTHONUNBUFFERED: "1"
     command: >
       bash -lc "pytest -q"
-
+  nginx:
+    profiles: ["api"]
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --header='Authorization: Basic YWRtaW46YWRtaW4=' http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - mlops
+  n8n:
+    build:
+      context: ./n8n
+      dockerfile: Dockerfile
+    image: mlops-challenge-n8n:local
+    user: "0:0"
+    entrypoint: ["/entrypoint.sh"]
+    command: []
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-password}
+      - N8N_USER_FOLDER=/home/node/.n8n
+      - HOME=/home/node
+      - NODES_EXCLUDE=[]
+      - WEBHOOK_URL=http://localhost:5678
+      - HOST_WORKSPACE_PATH=${PWD}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --header='Authorization: Basic YWRtaW46YWRtaW4=' http://localhost:5678/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - mlops
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9090/-/healthy >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mlops
+  grafana:
+    image: grafana/grafana:10.0.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - mlops
+  loki:
+    image: grafana/loki:2.8.2
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-local.yml
+    volumes:
+      - loki_data:/loki
+      - ./observability/loki/loki-local.yml:/etc/loki/loki-local.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3100/ready | grep -q ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - mlops
 volumes:
   tfds_cache:
+  n8n_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  mlops:

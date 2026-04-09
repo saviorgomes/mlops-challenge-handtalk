@@ -24,6 +24,24 @@ Este repositório fornece as **rotinas base** que o candidato utilizará para im
 
 ---
 
+## 🧭 Resumo Executivo
+
+Esta entrega prioriza os pontos centrais do desafio: **automação do ciclo de vida do modelo**, **operação da plataforma** e **observabilidade do ambiente**, preservando as rotinas-base de ML já fornecidas.
+
+Os principais objetivos atendidos foram:
+
+- Disparo único do pipeline via `n8n`, com fluxo de **preparar → treinar → validar → publicar → deploy**
+- Proteção da API com **gateway**, autenticação, rate limiting e logging
+- Pipeline de **CI/CD** com lint, testes, build e publicação de imagem
+- Observabilidade com **métricas, logs, health checks e alertas**
+- Rastreabilidade de artefatos com `run_id`, `git_sha`, métricas e metadados
+
+Decisão importante de implementação:
+
+- A camada de automação foi mantida **fora dos scripts-base de ML**, para respeitar a orientação do desafio de não alterar o comportamento das rotinas de treinamento e preparação apenas para “embutir MLOps”
+
+---
+
 ## 🏗️ Arquitetura
 
 ```
@@ -221,7 +239,7 @@ flowchart TD
         Prepare["📂 Preparar Dados\nTFRecords em data/processed"]
         Train["🧠 Treinar Modelo\nSavedModel + métricas + run_id"]
         Validate["✅ Validar\nthreshold de qualidade"]
-        Publish["📦 Publicar Artefatos\nartifacts/<run_id> + metadados"]
+        Publish["📦 Publicar Artefatos\npublished/<run_id> + registry/latest"]
         Deploy["🚀 Deploy\nPOST /reload com run_id"]
         Prometheus["📈 Prometheus\n:9090"]
         JsonExporter["🔄 json-exporter\n:7979"]
@@ -255,8 +273,19 @@ flowchart TD
 | **Orquestrador** | n8n | Pipeline ML via webhook |
 | **API Gateway** | NGINX | Basic Auth, rate limit e logging |
 | **Métricas** | Prometheus + json-exporter + Grafana | Coleta, conversão de formato e dashboard |
-| **Logs** | Loki + Grafana | Centralização de logs |
+| **Logs** | Promtail + Loki + Grafana | Centralização de logs |
 | **CI/CD** | GitHub Actions | Lint, test, build, publish |
+
+---
+
+## 🧠 Decisões Técnicas
+
+- **n8n como orquestrador central**: escolhido para tornar o pipeline visual, webhook-driven e fácil de demonstrar durante a avaliação.
+- **NGINX como gateway**: solução simples e suficiente para atender autenticação, rate limiting e logging sem adicionar complexidade desnecessária.
+- **Publicação de artefatos fora de `ml/`**: a etapa de publicação foi implementada em [`automation/`](automation/) para separar claramente automação de plataforma da camada base de ML.
+- **Prometheus + json-exporter**: a API expõe métricas em JSON, então o `json-exporter` foi usado para integrar a coleta sem reimplementar os endpoints existentes.
+- **Promtail + Loki**: adotados para centralização de logs de containers e visualização integrada no Grafana.
+- **Docker socket no n8n**: opção prática para o contexto do desafio, permitindo que o workflow execute as etapas de forma reproduzível via containers.
 
 ---
 
@@ -296,7 +325,9 @@ curl -X POST http://localhost:5678/webhook/mlops-pipeline \
   }'
 ```
 
-O pipeline executa automaticamente: **Preparar Dados → Treinar → Validar → Deploy**.
+O pipeline executa automaticamente: **Preparar Dados → Treinar → Validar → Publicar → Deploy**.
+
+Observação: as rotinas-base de ML foram preservadas; a etapa de publicação fica na camada de automação da plataforma.
 
 ### 3. Autenticação na API
 
@@ -319,7 +350,9 @@ docker compose --profile api down --remove-orphans
 - **Grafana** — acesse http://localhost:3000 (usuário: `admin`, senha: definida em `GF_ADMIN_PASSWORD`)
 - Datasources provisionados automaticamente: Prometheus e Loki
 - Métricas da API disponíveis em `/metrics` e coletadas pelo Prometheus a cada 15s
-- Logs e controle de acesso da API passam pelo NGINX, com `Basic Auth`, `limit_req` de `30r/m` por cliente e `access_log` em JSON
+- Logs dos containers são coletados pelo Promtail e enviados ao Loki, incluindo a API e o gateway NGINX
+- O gateway aplica `Basic Auth`, `limit_req` de `30r/m` por cliente e `access_log` em JSON
+- O roteamento de alertas está provisionado para o webhook `mlops-alerts` no `n8n`
 
 ---
 
@@ -333,6 +366,26 @@ Pipeline GitHub Actions com 4 stages em sequência:
 | **test** | após lint | `pytest -q` |
 | **build** | após test | `docker build` |
 | **publish** | apenas `main` | push para GHCR |
+
+---
+
+## ⚖️ Trade-Offs e Limitações
+
+- O foco desta entrega está em **MLOps, automação e operação da plataforma**, não em maximizar a qualidade do modelo base de tradução.
+- As métricas `requests_total`, `errors_total` e `translations_total` são mantidas em memória pela API; ao recriar o container, esses contadores reiniciam.
+- A publicação de artefatos foi implementada como um registro local versionado em disco, suficiente para o desafio, mas não substitui um model registry dedicado em produção.
+- O uso de `docker.sock` no `n8n` é uma escolha pragmática para demonstração local; em um ambiente produtivo, eu substituiria isso por runners dedicados ou jobs isolados.
+- Os alertas foram integrados ao Grafana e roteados ao webhook do `n8n`; para produção, eu complementaria com política de escalation, histórico e destinos externos adicionais.
+
+---
+
+## 🚀 Próximos Passos
+
+- Persistir métricas da aplicação em backend próprio ou exportá-las nativamente em formato Prometheus
+- Substituir a execução via `docker.sock` por workers/runners dedicados
+- Adicionar rollback automatizado orientado por alerta ou health degradation
+- Evoluir a publicação local de artefatos para um registry de modelos ou storage remoto versionado
+- Expandir testes automatizados com cenários de integração do pipeline orquestrado
 
 ---
 
